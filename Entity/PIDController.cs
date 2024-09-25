@@ -53,11 +53,33 @@ public class PIDController
 
   public double Calculate(double currentError, double currentControl)
   {
-    // Calcule m(k)
+    // Evitar divisão por zero na integral (Ti não deve ser zero)
+    double integralTerm = 0;
+    if (_controlParameters.Ti > 0)
+    {
+      integralTerm = (1 / _controlParameters.Ti) * currentError;
+    }
+
+    // Evitar valores extremos no termo derivativo
+    double derivativeTerm = 0;
+    double controlDifference = currentControl - 2 * previousControl1 + previousControl2;
+
+    if (Math.Abs(controlDifference) > 1e-10)  // Evitar diferenças muito pequenas
+    {
+      derivativeTerm = _controlParameters.Td * controlDifference;
+    }
+
+    // Calcular m(k) com os três termos (proporcional, integral, derivativo)
     double mK = _controlParameters.Kp * (currentError - previousError)
-                + (1 / _controlParameters.Ti) * currentError
-                + (_controlParameters.Td / (currentControl - 2 * previousControl1 + previousControl2))
+                + integralTerm
+                + derivativeTerm
                 + lastOutput;
+
+    // Limitar o valor de mK para evitar overflow ou valores fora dos limites
+    if (double.IsInfinity(mK) || double.IsNaN(mK) || mK < 0.0)
+    {
+      mK = lastOutput;  // Se mK for infinito ou NaN, manter o último valor válido
+    }
 
     // Atualize os valores para a próxima iteração
     previousError = currentError;

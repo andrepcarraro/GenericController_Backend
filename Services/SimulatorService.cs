@@ -7,8 +7,8 @@ namespace GenericController_Backend.Services;
 
 public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController pidController)
 {
-  private double _processVariable = 50.0;  // Starting value for the process
-  public int TimeBetweenSimulations = 1000;
+  private double _processVariable = 1;  // Starting value for the process
+  public int TimeBetweenSimulations = 500;
   private Task simulationTask;
   private CancellationTokenSource _cancellationTokenSource;
 
@@ -27,17 +27,19 @@ public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController 
 
   private async Task StartSimulationAsync(CancellationToken cancellationToken)
   {
-    while (!cancellationToken.IsCancellationRequested)
+    double output = 0;
+    bool parar = false;
+    while (!parar && !cancellationToken.IsCancellationRequested)
     {
       // Simulate a changing process variable, e.g., temperature, pressure, etc.
       _processVariable += GetProcessVariableChange();
 
       // Send the new process variable to the controller
-      double output = pidController.Compute(_processVariable);
-
+      //double output = pidController.Compute(_processVariable);
+      output += 0.1;
       if (output is not double.NaN)
         await hubContext.Clients.All.SendAsync("Output", _processVariable, output);
-
+      parar = output >= 1;
       // Wait for a short time before the next iteration
       await Task.Delay(TimeBetweenSimulations);
     }
@@ -51,7 +53,7 @@ public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController 
   private double GetProcessVariableChange()
   {
     // Simulate some random fluctuations in the process variable
-    return new Random().NextDouble() * 2.0 - 1.0;  // -1.0 to +1.0 change
+    return new Random().NextDouble() * 2 - 0.5;  // -1.0 to +1.0 change
   }
 }
 

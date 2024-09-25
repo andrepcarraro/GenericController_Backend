@@ -4,21 +4,65 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace GenericController_Backend.Hubs;
 
-public class ControlHub(PIDController pidController, SimulatorService simulatorService) : Hub
+public class ControlHub(SimulatorService simulatorService, PIDController PidController) : Hub
 {
-    public async Task SendProcessVariable(double processVariable)
-    {
-        // Compute the new output based on the process variable
-        double output = pidController.Compute(processVariable);
+  ControlParameters ControlParameters = new ControlParameters();
 
-        // Broadcast the computed output to all connected clients
-        await Clients.All.SendAsync("ReceiveOutput", output);
-    }
+  public override async Task OnConnectedAsync()
+  {
+    Console.WriteLine($"Client connected: {Context.ConnectionId}");
 
-    public async Task SetControlParameters(ControlParameters controlParameters)
+    await base.OnConnectedAsync();
+  }
+
+  public override async Task OnDisconnectedAsync(Exception exception)
+  {
+    Console.WriteLine($"Client disconnected: {Context.ConnectionId}");
+    simulatorService.StopSimulation();
+
+    await base.OnDisconnectedAsync(exception);
+  }
+
+  public async Task SendProcessVariable(double processVariable)
+  {
+    // Compute the new output based on the process variable
+    double output = PidController.Compute(processVariable);
+
+    // Broadcast the computed output to all connected clients
+    await Clients.All.SendAsync("ReceiveOutput", output);
+  }
+
+  public async Task SetControlParameters(double kp, double ti, double td, double minOutput, double maxOutput, bool autoMode, bool isDirect, double setPoint, double manualOutput, int timeBetweenSimulations)
+  {
+    var controlParameters = new ControlParameters()
     {
-        // Update the controller with new control parameters
-        pidController = new PIDController(controlParameters);
-        await Clients.All.SendAsync("ControlParametersUpdated", controlParameters);
-    }
+      Kp = kp,
+      Ti = ti,
+      Td = td,
+      MinOutput = minOutput,
+      MaxOutput = maxOutput,
+      AutoMode = autoMode,
+      IsDirect = isDirect,
+      SetPoint = setPoint,
+      ManualOutput = manualOutput
+    };
+
+    ControlParameters = controlParameters;
+    PidController.UpdateControllerParameters(controlParameters);
+    simulatorService.TimeBetweenSimulations = timeBetweenSimulations;
+
+    await Clients.All.SendAsync("ControlParametersUpdated", timeBetweenSimulations);
+  }
+
+  public async Task GetControlParameters()
+  {
+    Console.WriteLine("GetControlParameters " + ControlParameters);
+    await Clients.All.SendAsync("ControlParameters", ControlParameters);
+  }
+
+  public async Task StartSimulation()
+  {
+    simulatorService.StartSimulation();
+    await Clients.All.SendAsync("StartSimulation", "Ok");
+  }
 }

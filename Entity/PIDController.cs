@@ -1,100 +1,120 @@
 namespace GenericController_Backend.Entity;
-public class PIDController(ControlParameters controlParameters)
+public class PIDController
 {
-    public double LastError { get; private set; } = 0;
-    public double PrevError { get; private set; } = 0;
-    public double Integral { get; private set; } = 0;
+  private ControlParameters _controlParameters;
 
-    private bool _autoModeState = controlParameters.AutoMode;
+  public PIDController(ControlParameters controlParameters)
+  {
+    _controlParameters = controlParameters;
+    _autoModeState = _controlParameters.AutoMode;
+  }
+  private double lastOutput = 0.0;  // m(k-1)
+  private double previousError = 0.0;  // e(k-1)
+  private double previousControl1 = 0.0;  // c(k-1)
+  private double previousControl2 = 0.0;  // c(k-2)
 
-    // Saída atual do controlador
-    private double _currentOutput = 0;
+  private bool _autoModeState;
 
-    public double Compute(double processVariable)
+  // Saída atual do controlador
+  private double _currentOutput = 0.0;
+
+  public double Compute(double processVariable)
+  {
+    double error = AdjustValueToScale(_controlParameters.SetPoint) - AdjustValueToScale(processVariable);
+
+    if (!_controlParameters.IsDirect)
+      error = -error;  // Ação reversa
+
+    if (_controlParameters.AutoMode)
     {
-        double error = AdjustValueToScale(controlParameters.SetPoint) - AdjustValueToScale(processVariable);
 
-        if (!controlParameters.IsDirect)
-            error = -error;  // Ação reversa
+      if (_autoModeState != _controlParameters.AutoMode)
+      {
+        _autoModeState = _controlParameters.AutoMode;
+        AdjustForBumpless();
+      }
 
-        if (controlParameters.AutoMode)
-        {
-            double proportional = controlParameters.Kp * error;
+      // Saída incremental (somando proporcional, integral e derivada)
+      _currentOutput = Calculate(error, _currentOutput);
 
-            // Calcular Ki e Kd
-            double Ki = controlParameters.Kp / controlParameters.Ti;
-            double Kd = controlParameters.Kp * controlParameters.Td;
-
-            // Integração
-            Integral += Ki * error;
-
-            if (_autoModeState != controlParameters.AutoMode)
-            {
-                _autoModeState = controlParameters.AutoMode;
-                AdjustIntegralForBumpless();
-            }
-
-            // Derivada com base nos dois últimos erros
-            double derivative = Kd * (error * LastError + PrevError);
-
-            // Saída incremental (somando proporcional, integral e derivada)
-            _currentOutput = proportional + Integral + derivative;
-
-            // Atualização dos erros
-            PrevError = LastError;
-            LastError = error;
-
-            // Aplicar os limites e mapear a saída para o intervalo definido
-            return _currentOutput > 100.0 ? 100.0 : _currentOutput;
-        }
-        else
-        {
-            if (_autoModeState != controlParameters.AutoMode)
-                _autoModeState = controlParameters.AutoMode;
-
-            // Modo manual, usar saída direta do operador
-            _currentOutput = controlParameters.ManualOutput;
-            return controlParameters.ManualOutput > 100.0 ? 100.0 : controlParameters.ManualOutput;
-        }
+      // Aplicar os limites e mapear a saída para o intervalo definido
+      return _currentOutput > 1.0 ? 1.0 : _currentOutput;
     }
-
-    // Função para ajustar a integral na troca para modo automático (bumpless)
-    private void AdjustIntegralForBumpless()
+    else
     {
-        double error = controlParameters.SetPoint - _currentOutput;
-        if (!controlParameters.IsDirect)
-            error = -error;
+      if (_autoModeState != _controlParameters.AutoMode)
+        _autoModeState = _controlParameters.AutoMode;
 
-        // Ajustar a integral para que a saída não tenha um salto quando trocamos para modo automático
-        Integral = _currentOutput - controlParameters.Kp * error;
+      // Modo manual, usar saída direta do operador
+      _currentOutput = _controlParameters.ManualOutput;
+      return _controlParameters.ManualOutput > 1.0 ? 1.0 : _controlParameters.ManualOutput;
     }
+  }
 
-    private double AdjustValueToScale(double value)
-    {
-        var percent = value * 100.0 / controlParameters.MaxOutput;
-        return Math.Max(0.0, percent);
-    }
+  public double Calculate(double currentError, double currentControl)
+  {
+    // Calcule m(k)
+    double mK = _controlParameters.Kp * (currentError - previousError)
+                + (1 / _controlParameters.Ti) * currentError
+                + (_controlParameters.Td / (currentControl - 2 * previousControl1 + previousControl2))
+                + lastOutput;
+
+    // Atualize os valores para a próxima iteração
+    previousError = currentError;
+    previousControl2 = previousControl1;
+    previousControl1 = currentControl;
+    lastOutput = mK;
+
+    return mK;
+  }
+
+  // Função para ajustar a integral na troca para modo automático (bumpless)
+  private void AdjustForBumpless()
+  {
+    previousError = 0;
+    previousControl2 = 0;
+    previousControl1 = 0;
+    lastOutput = _currentOutput;
+  }
+
+  private double AdjustValueToScale(double value)
+  {
+    if (_controlParameters.MaxOutput == 0)
+      return 0.0;
+
+    var percent = value * 100.0 / _controlParameters.MaxOutput;
+
+    var treatPercent = percent > 100.0 ? 1 : percent / 100;
+    return treatPercent;
+  }
+
+  public void UpdateControllerParameters(ControlParameters controlParameters)
+  {
+    _controlParameters = controlParameters;
+    _autoModeState = _controlParameters.AutoMode;
+  }
 }
 
 public class ControlParameters
 {
-    public double Kp { get; set; }  // Proporcional
-    public double Ti { get; set; }  // Integral
-    public double Td { get; set; }  // Derivativo
+  public double Kp { get; set; }  // Proporcional
+  public double Ti { get; set; }  // Integral
+  public double Td { get; set; }  // Derivativo
 
-    // Limites de 0% e 100%
-    public double MinOutput { get; set; }  // Representa 0%
-    public double MaxOutput { get; set; }  // Representa 100%
+  // Limites de 0% e 100%
+  public double MinOutput { get; set; }   // Representa 0%
+  public double MaxOutput { get; set; }  // Representa 100%
 
-    // Modo automático ou manual
-    public bool AutoMode { get; set; } = true;
+  // Modo automático ou manual
+  public bool AutoMode { get; set; } = true;
 
-    // Ação direta ou reversa
-    public bool IsDirect { get; set; } = true;
+  // Ação direta ou reversa
+  public bool IsDirect { get; set; } = true;
 
-    // SetPoint
-    public double SetPoint { get; set; }
+  // SetPoint
+  public double SetPoint { get; set; }
 
-    // Saída atual no modo manual
-    public double ManualOutput { get; set; } = 0;
+  // Saída atual no modo manual
+  public double ManualOutput { get; set; } = 0;
 }
+

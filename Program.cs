@@ -6,67 +6,67 @@ using System.Text.Json.Serialization;
 
 namespace GenericController_Backend
 {
-  public class Program
-  {
-    public static void Main(string[] args)
+    public class Program
     {
-      var builder = WebApplication.CreateBuilder(args);
-      // Register PIDController and SimulatorService
-      builder.Services.AddSingleton<ControlParameters>();  // Singleton for control parameters
-      builder.Services.AddSingleton<PIDController>();
-      builder.Services.AddSingleton<SimulatorService>();
-
-      // Add SignalR
-      builder.Services.AddSignalR()
-        .AddJsonProtocol(options =>
+        public static void Main(string[] args)
         {
-          options.PayloadSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
-          options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        });
+            var builder = WebApplication.CreateBuilder(args);
+            // Register PIDController and SimulatorService
+            builder.Services.AddSingleton<ControlParameters>();  // Singleton for control parameters
+            builder.Services.AddSingleton<PIDController>();
+            builder.Services.AddSingleton<SimulatorService>();
 
-      // Add services to the container
-      builder.Services.AddControllers();
-
-      // Swagger/OpenAPI configuration
-      builder.Services.AddEndpointsApiExplorer();
-      builder.Services.AddSwaggerGen();
-
-      // CORS policy
-      builder.Services.AddCors(options =>
-      {
-        options.AddPolicy("AllowAngularApp", builder =>
+            // Add SignalR
+            builder.Services.AddSignalR()
+              .AddJsonProtocol(options =>
               {
-                builder
-                          .WithOrigins("http://localhost:4200") // Your Angular app running at localhost
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials(); // This is important if you're using SignalR with credentials
+                  options.PayloadSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+                  options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
               });
-      });
 
-      var app = builder.Build();
+            // Add services to the container
+            builder.Services.AddControllers();
 
-      // Use CORS policy
-      app.UseCors("AllowAngularApp");
+            // Swagger/OpenAPI configuration
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
-      // Developer exception page and Swagger in development
-      if (app.Environment.IsDevelopment())
-      {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-        app.UseDeveloperExceptionPage();
-      }
+            // CORS policy
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAngularApp", builder =>
+                {
+                    builder
+                        .WithOrigins("http://localhost:4200") // Your Angular app running at localhost
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials(); // This is important if you're using SignalR with credentials
+                });
+            });
 
-      // Uncomment if you want to enforce HTTPS redirection
-      // app.UseHttpsRedirection();
+            var app = builder.Build();
 
-      // Map SignalR hubs and controllers
-      app.MapHub<ControlHub>("controlHub");
+            // Use CORS policy
+            app.UseCors("AllowAngularApp");
 
-      app.MapControllers();
+            // Developer exception page and Swagger in development
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+                app.UseDeveloperExceptionPage();
+            }
 
-      // Run the application
-      app.Run();
+            // Uncomment if you want to enforce HTTPS redirection
+            // app.UseHttpsRedirection();
+
+            // Map SignalR hubs and controllers
+            app.MapHub<ControlHub>("controlHub");
+
+            app.MapControllers();
+
+            // Run the application
+            app.Run();
+        }
     }
-  }
 }

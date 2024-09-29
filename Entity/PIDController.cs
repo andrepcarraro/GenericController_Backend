@@ -115,6 +115,27 @@ public class PIDController
         _controlParameters = controlParameters;
         _autoModeState = _controlParameters.AutoMode;
     }
+
+    public void ChangeMode(bool isAutoMode)
+    {
+        _autoModeState = _controlParameters.AutoMode = isAutoMode;
+    }
+
+    public void ChangeManualOutput(double manualOutput)
+    {
+        _controlParameters.ManualOutput = manualOutput;
+    }
+
+    public void resetParameters()
+    {
+        lastOutput = 0.0;  // m(k-1)
+        previousError = 0.0;  // e(k-1)
+        previousControl1 = 0.0;  // c(k-1)
+        previousControl2 = 0.0;  // c(k-2)
+
+        // Saída atual do controlador
+        _currentOutput = 0.0;
+    }
 }
 
 public class ControlParameters
@@ -137,7 +158,7 @@ public class ControlParameters
     public double SetPoint { get; set; }
 
     // Saída atual no modo manual
-    public double ManualOutput { get; set; } = 0;
+    public double ManualOutput { get; set; } = 0.0;
 
     //Tempo entre as interações do controlador em milissegundos
     public int CycleTime { get; set; }

@@ -6,7 +6,8 @@ namespace GenericController_Backend.Hubs;
 
 public class ControlHub(SimulatorService simulatorService, PIDController PidController) : Hub
 {
-    ControlParameters ControlParameters = new ControlParameters();
+    bool IsAutoMode = true;
+    double ManualOutput = 0.0;
 
     public override async Task OnConnectedAsync()
     {
@@ -32,7 +33,7 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
         await Clients.All.SendAsync("ReceiveOutput", output);
     }
 
-    public async Task SetControlParameters(double kp, double ti, double td, double minOutput, double maxOutput, bool autoMode, bool isDirect, double setPoint, double manualOutput, int cycleTime)
+    public async Task SetControlParameters(double kp, double ti, double td, double minOutput, double maxOutput, bool isDirect, double setPoint, int cycleTime)
     {
         var controlParameters = new ControlParameters()
         {
@@ -41,17 +42,17 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
             Td = td,
             MinOutput = minOutput,
             MaxOutput = maxOutput,
-            AutoMode = autoMode,
+            AutoMode = IsAutoMode,
             IsDirect = isDirect,
             SetPoint = setPoint,
-            ManualOutput = manualOutput,
+            ManualOutput = ManualOutput,
             CycleTime = cycleTime
         };
 
-        ControlParameters = controlParameters;
         PidController.UpdateControllerParameters(controlParameters);
+        PidController.resetParameters();
 
-        await Clients.All.SendAsync("ControlParametersUpdated", true);
+        await Clients.All.SendAsync("ControlParametersUpdated", controlParameters);
     }
 
 
@@ -71,6 +72,24 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
     {
         simulatorService.ProcessVariable = processVariable;
 
-        await Clients.All.SendAsync("ProcessVariableUpdated", true);
+        await Clients.All.SendAsync("ProcessVariableUpdated", processVariable);
+    }
+
+    public async Task ChangeMode(bool isAutoMode)
+    {
+        IsAutoMode = isAutoMode;
+
+        PidController.ChangeMode(isAutoMode);
+
+        await Clients.All.SendAsync("modeChanged", isAutoMode);
+    }
+
+    public async Task SetManualOutput(double manualOutput)
+    {
+        ManualOutput = manualOutput;
+
+        PidController.ChangeManualOutput(manualOutput);
+
+        await Clients.All.SendAsync("manualOutputUpdated", manualOutput);
     }
 }

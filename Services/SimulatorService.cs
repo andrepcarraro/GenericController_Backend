@@ -32,7 +32,9 @@ public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController 
             output = pidController.Compute(ProcessVariable);
 
             if (output is not double.NaN)
-                await hubContext.Clients.All.SendAsync("Output",new { output = AdjustOutputToScale(output), ProcessVariable, pidController._controlParameters.SetPoint });
+            {
+                await hubContext.Clients.All.SendAsync("Output", new { output = AdjustOutputToScale(output), ProcessVariable, pidController._controlParameters.SetPoint });
+            }
 
             // Wait for a short time before the next iteration
             await Task.Delay(pidController._controlParameters.CycleTime);

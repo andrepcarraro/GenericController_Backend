@@ -6,14 +6,12 @@ public class PIDController
     public PIDController(ControlParameters controlParameters)
     {
         _controlParameters = controlParameters;
-        _autoModeState = _controlParameters.AutoMode;
+        _controlParameters.AutoModeState = _controlParameters.AutoMode;
     }
     private double lastOutput = 0.0;  // m(k-1)
     private double previousError = 0.0;  // e(k-1)
     private double previousControl1 = 0.0;  // c(k-1)
     private double previousControl2 = 0.0;  // c(k-2)
-
-    private bool _autoModeState;
 
     // Saída atual do controlador
     private double _currentOutput = 0.0;
@@ -28,9 +26,9 @@ public class PIDController
         if (_controlParameters.AutoMode)
         {
 
-            if (_autoModeState != _controlParameters.AutoMode)
+            if (_controlParameters.AutoModeState != _controlParameters.AutoMode)
             {
-                _autoModeState = _controlParameters.AutoMode;
+                _controlParameters.AutoModeState = _controlParameters.AutoMode;
                 AdjustForBumpless();
             }
 
@@ -42,8 +40,8 @@ public class PIDController
         }
         else
         {
-            if (_autoModeState != _controlParameters.AutoMode)
-                _autoModeState = _controlParameters.AutoMode;
+            if (_controlParameters.AutoModeState != _controlParameters.AutoMode)
+                _controlParameters.AutoModeState = _controlParameters.AutoMode;
 
             // Modo manual, usar saída direta do operador
             _currentOutput = _controlParameters.ManualOutput;
@@ -74,6 +72,9 @@ public class PIDController
                     + integralTerm
                     + derivativeTerm
                     + lastOutput;
+
+        if (mK > 1.0)
+          mK = 1.0;
 
         // Limitar o valor de mK para evitar overflow ou valores fora dos limites
         if (double.IsInfinity(mK) || double.IsNaN(mK) || mK < 0.0)
@@ -113,12 +114,13 @@ public class PIDController
     public void UpdateControllerParameters(ControlParameters controlParameters)
     {
         _controlParameters = controlParameters;
-        _autoModeState = _controlParameters.AutoMode;
+        _controlParameters.AutoModeState = _controlParameters.AutoMode;
     }
 
     public void ChangeMode(bool isAutoMode)
-    {
-        _autoModeState = _controlParameters.AutoMode = isAutoMode;
+    {AutoModeState
+        _controlParameters. = isAutoMode;
+        _controlParameters.AutoMode = isAutoMode;
     }
 
     public void ChangeManualOutput(double manualOutput)
@@ -151,8 +153,11 @@ public class ControlParameters
     // Modo automático ou manual
     public bool AutoMode { get; set; } = true;
 
-    // Ação direta ou reversa
-    public bool IsDirect { get; set; } = true;
+    // Modo automático ou manual
+    public bool AutoModeState { get; set; } = true;
+
+  // Ação direta ou reversa
+  public bool IsDirect { get; set; } = true;
 
     // SetPoint
     public double SetPoint { get; set; }

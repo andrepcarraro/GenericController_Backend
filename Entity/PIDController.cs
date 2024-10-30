@@ -1,57 +1,51 @@
 namespace GenericController_Backend.Entity;
 public class PIDController
 {
-    public ControlParameters _controlParameters;
+    public volatile ControlParameters _controlParameters;
 
     public PIDController(ControlParameters controlParameters)
     {
         _controlParameters = controlParameters;
-        _controlParameters.AutoModeState = _controlParameters.AutoMode;
     }
     private double lastOutput = 0.0;  // m(k-1)
     private double previousError = 0.0;  // e(k-1)
     private double previousControl1 = 0.0;  // c(k-1)
     private double previousControl2 = 0.0;  // c(k-2)
 
-    // Saída atual do controlador
+    // Saï¿½da atual do controlador
     private double _currentOutput = 0.0;
 
     public double Compute(double processVariable)
     {
-        double error = AdjustValueToScale(_controlParameters.SetPoint) - AdjustValueToScale(processVariable);
+        var error = AdjustValueToScale(_controlParameters.SetPoint) - AdjustValueToScale(processVariable);
 
         if (!_controlParameters.IsDirect)
-            error = -error;  // Ação reversa
+            error = -error;  // controle reverso
 
         if (_controlParameters.AutoMode)
         {
-
-            if (_controlParameters.AutoModeState != _controlParameters.AutoMode)
-            {
-                _controlParameters.AutoModeState = _controlParameters.AutoMode;
-                AdjustForBumpless();
-            }
-
-            // Saída incremental (somando proporcional, integral e derivada)
+            // Saida incremental (somando proporcional, integral e derivada)
             _currentOutput = Calculate(error, _currentOutput);
 
-            // Aplicar os limites e mapear a saída para o intervalo definido
+            // Aplicar os limites e mapear a saï¿½da para o intervalo definido
             return _currentOutput > 1.0 ? 1.0 : _currentOutput;
         }
         else
         {
-            if (_controlParameters.AutoModeState != _controlParameters.AutoMode)
-                _controlParameters.AutoModeState = _controlParameters.AutoMode;
-
-            // Modo manual, usar saída direta do operador
+            // Modo manual, usar saï¿½da direta do operador
             _currentOutput = _controlParameters.ManualOutput;
+            previousError = error;
+            previousControl2 = previousControl1;
+            previousControl1 = _currentOutput;
+            lastOutput = _currentOutput;
+            
             return _controlParameters.ManualOutput > 1.0 ? 1.0 : _controlParameters.ManualOutput;
         }
     }
 
     public double Calculate(double currentError, double currentControl)
     {
-        // Evitar divisão por zero na integral (Ti não deve ser zero)
+        // Evitar divisï¿½o por zero na integral (Ti nï¿½o deve ser zero)
         double integralTerm = 0;
         if (_controlParameters.Ti > 0)
         {
@@ -62,12 +56,12 @@ public class PIDController
         double derivativeTerm = 0;
         double controlDifference = currentControl - 2 * previousControl1 + previousControl2;
 
-        if (Math.Abs(controlDifference) > 1e-10)  // Evitar diferenças muito pequenas
+        if (Math.Abs(controlDifference) > 1e-10)  // Evitar diferenï¿½as muito pequenas
         {
             derivativeTerm = _controlParameters.Td * controlDifference;
         }
 
-        // Calcular m(k) com os três termos (proporcional, integral, derivativo)
+        // Calcular m(k) com os trï¿½s termos (proporcional, integral, derivativo)
         double mK = _controlParameters.Kp * (currentError - previousError)
                     + integralTerm
                     + derivativeTerm
@@ -79,25 +73,16 @@ public class PIDController
         // Limitar o valor de mK para evitar overflow ou valores fora dos limites
         if (double.IsInfinity(mK) || double.IsNaN(mK) || mK < 0.0)
         {
-            mK = lastOutput;  // Se mK for infinito ou NaN, manter o último valor válido
+            mK = lastOutput;  // Se mK for infinito ou NaN, manter o ï¿½ltimo valor vï¿½lido
         }
 
-        // Atualize os valores para a próxima iteração
+        // Atualize os valores para a prï¿½xima iteraï¿½ï¿½o
         previousError = currentError;
         previousControl2 = previousControl1;
         previousControl1 = currentControl;
         lastOutput = mK;
 
         return mK;
-    }
-
-    // Função para ajustar a integral na troca para modo automático (bumpless)
-    private void AdjustForBumpless()
-    {
-        previousError = 0;
-        previousControl2 = 0;
-        previousControl1 = 0;
-        lastOutput = _currentOutput;
     }
 
     private double AdjustValueToScale(double value)
@@ -114,12 +99,10 @@ public class PIDController
     public void UpdateControllerParameters(ControlParameters controlParameters)
     {
         _controlParameters = controlParameters;
-        _controlParameters.AutoModeState = _controlParameters.AutoMode;
     }
 
     public void ChangeMode(bool isAutoMode)
-    {AutoModeState
-        _controlParameters. = isAutoMode;
+    {
         _controlParameters.AutoMode = isAutoMode;
     }
 
@@ -135,7 +118,7 @@ public class PIDController
         previousControl1 = 0.0;  // c(k-1)
         previousControl2 = 0.0;  // c(k-2)
 
-        // Saída atual do controlador
+        // Saï¿½da atual do controlador
         _currentOutput = 0.0;
     }
 }
@@ -150,22 +133,20 @@ public class ControlParameters
     public double MinOutput { get; set; }   // Representa 0%
     public double MaxOutput { get; set; }  // Representa 100%
 
-    // Modo automático ou manual
+    // Modo automï¿½tico ou manual
     public bool AutoMode { get; set; } = true;
+    
 
-    // Modo automático ou manual
-    public bool AutoModeState { get; set; } = true;
-
-  // Ação direta ou reversa
-  public bool IsDirect { get; set; } = true;
+    // Aï¿½ï¿½o direta ou reversa
+    public bool IsDirect { get; set; } = true;
 
     // SetPoint
     public double SetPoint { get; set; }
 
-    // Saída atual no modo manual
+    // Saï¿½da atual no modo manual
     public double ManualOutput { get; set; } = 0.0;
 
-    //Tempo entre as interações do controlador em milissegundos
+    //Tempo entre as interaï¿½ï¿½es do controlador em milissegundos
     public int CycleTime { get; set; }
 }
 

@@ -10,6 +10,7 @@ public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController 
     private Task simulationTask;
     private CancellationTokenSource _cancellationTokenSource;
 
+    
     public void StartSimulation()
     {
         // Prevent starting a new simulation if one is already running

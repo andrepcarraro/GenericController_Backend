@@ -24,19 +24,17 @@ public class ProcessMathModeling
     // disturb é o valor de disturbio um valor aleatório
     public double SimulateMathModel(double lastProcessInput, double disturb)
     {
-        inputs = [1, 1, 1, 1, 0, 1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0,1, 1, 1, 1, 0];
-        b1 = Math.Exp((double) -_controlParameters.Tau/_controlParameters.CycleTime);
-        b2 = Math.Exp((double) -_controlParameters.CycleTime / _controlParameters.Tau);
+        b1 = Math.Exp((double) -_controlParameters.CycleTime / _controlParameters.Tau);
         an = 1 - b1;
         
-        //inputs.Add(lastProcessInput);
-        var deadTimeFinish = iteration >= 1 - _controlParameters.ProcessDeadTime / _controlParameters.CycleTime;
-        var index = iteration - 1 -_controlParameters.ProcessDeadTime / _controlParameters.CycleTime >= 0
-            ? iteration - 1 -_controlParameters.ProcessDeadTime / _controlParameters.CycleTime : 0;
+        inputs.Add(lastProcessInput);
+        var deadTimeFinish = iteration >= _controlParameters.ProcessDeadTime / _controlParameters.CycleTime - 1;
+        var index = iteration - _controlParameters.ProcessDeadTime / _controlParameters.CycleTime -1 >= 0
+            ? iteration - _controlParameters.ProcessDeadTime / _controlParameters.CycleTime - 1 : 0;
         
         var consideredInput = deadTimeFinish ? inputs[index] + disturb : disturb;
 
-        lastSimulationOutput = _controlParameters.Kp * an * consideredInput + b2 * lastSimulationOutput;
+        lastSimulationOutput = _controlParameters.Kp * an * consideredInput + b1 * lastSimulationOutput;
 
         iteration++;
         return lastSimulationOutput;

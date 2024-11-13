@@ -12,7 +12,7 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
     public override async Task OnConnectedAsync()
     {
         Console.WriteLine($"Client connected: {Context.ConnectionId}");
-
+        simulatorService.lastProcessOutput = 0.0;
         await base.OnConnectedAsync();
     }
 
@@ -33,7 +33,7 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
         await Clients.All.SendAsync("ReceiveOutput", output);
     }
 
-    public async Task SetControlParameters(double kp, double ti, double td, double minOutput, double maxOutput, bool isDirect, double setPoint, int cycleTime)
+    public async Task SetControlParameters(double kp, double ti, double td, double minOutput, double maxOutput, bool isDirect, double setPoint, int cycleTime, int tau, double disturb, int deadCycles)
     {
         var controlParameters = new ControlParameters()
         {
@@ -46,12 +46,15 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
             IsDirect = isDirect,
             SetPoint = setPoint,
             ManualOutput = ManualOutput,
-            CycleTime = cycleTime
+            CycleTime = cycleTime,
+            Tau = tau,
+            Disturb = disturb,
+            ProcessDeadTime = deadCycles
         };
 
         PidController.UpdateControllerParameters(controlParameters);
         PidController.resetParameters();
-
+        simulatorService.lastProcessOutput = 0.0;
         await Clients.All.SendAsync("ControlParametersUpdated", controlParameters);
     }
 
@@ -67,14 +70,7 @@ public class ControlHub(SimulatorService simulatorService, PIDController PidCont
         simulatorService.StopSimulation();
         await Clients.All.SendAsync("StopSimulation", true);
     }
-
-    public async Task SetProcessVariable(double processVariable)
-    {
-        simulatorService.ProcessVariable = processVariable;
-
-        await Clients.All.SendAsync("ProcessVariableUpdated", processVariable);
-    }
-
+    
     public async Task ChangeMode(bool isAutoMode)
     {
         IsAutoMode = isAutoMode;

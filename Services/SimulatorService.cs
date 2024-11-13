@@ -6,10 +6,9 @@ namespace GenericController_Backend.Services;
 
 public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController pidController)
 {
-    public double ProcessVariable = 1;  // Starting value for the process
     private Task simulationTask;
     private CancellationTokenSource _cancellationTokenSource;
-
+    public double lastProcessOutput;
     
     public void StartSimulation()
     {
@@ -26,15 +25,19 @@ public class SimulatorService(IHubContext<ControlHub> hubContext, PIDController 
 
     private async Task StartSimulationAsync(CancellationToken cancellationToken)
     {
-        double output = 0.0;
+        lastProcessOutput = lastProcessOutput > 0.0 ? lastProcessOutput : 0.0;
+        var processMathModeling =  new ProcessMathModeling(pidController._controlParameters);
         while (!cancellationToken.IsCancellationRequested)
         {
+            var processVariable =
+                AdjustOutputToScale(processMathModeling.SimulateMathModel(lastProcessOutput, pidController._controlParameters.Disturb));
+            
             // Send the new process variable to the controller
-            output = pidController.Compute(ProcessVariable);
+            lastProcessOutput = pidController.Compute(processVariable);
 
-            if (output is not double.NaN)
+            if (lastProcessOutput is not double.NaN)
             {
-                await hubContext.Clients.All.SendAsync("Output", new { output = AdjustOutputToScale(output), ProcessVariable, pidController._controlParameters.SetPoint });
+                await hubContext.Clients.All.SendAsync("Output", new { output = AdjustOutputToScale(lastProcessOutput), processVariable, pidController._controlParameters.SetPoint });
             }
 
             // Wait for a short time before the next iteration

@@ -148,5 +148,14 @@ public class ControlParameters
 
     //Tempo entre as intera��es do controlador em milissegundos
     public int CycleTime { get; set; }
+    
+    //Tau - Constante de tempo de resposta do processo
+    public int Tau { get; set; }
+    
+    //Valor aplicado do disturbio ao processo
+    public double Disturb { get; set; }
+    
+    //Valor que indica o numero de ciclos que o processo demora para começar a responder ao controle
+    public int ProcessDeadTime { get; set; }
 }
 
